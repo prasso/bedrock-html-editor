@@ -1,0 +1,38 @@
+{
+    "name": "prasso/bedrock-html-editor",
+    "description": "Amazon Bedrock AgentCore HTML editor functionality for Laravel projects",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.0",
+        "illuminate/support": "^9.0|^10.0|^11.0",
+        "aws/aws-sdk-php": "^3.280",
+        "filament/filament": "^3.0",
+        "league/html-to-markdown": "^5.0",
+        "voku/html-min": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Prasso\\BedrockHtmlEditor\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Prasso\\BedrockHtmlEditor\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Prasso\\BedrockHtmlEditor\\BedrockHtmlEditorServiceProvider"
+            ]
+        }
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0",
+        "phpunit/phpunit": "^10.0|^11.0",
+        "mockery/mockery": "^1.5"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
