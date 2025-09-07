@@ -80,7 +80,7 @@ class BedrockHtmlEditorServiceProvider extends ServiceProvider
     {
         return [
             'middleware' => 'api',
-            'prefix' => 'api',
+            'prefix' => '',
             'namespace' => 'Prasso\\BedrockHtmlEditor\\Controllers',
         ];
     }
