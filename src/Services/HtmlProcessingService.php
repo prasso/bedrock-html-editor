@@ -59,18 +59,15 @@ class HtmlProcessingService
                 // Continue with the process even if validation fails
             }
 
-            // Prepare prompt using template
-            $fullPrompt = str_replace(
-                ['{html}', '{prompt}'],
-                [$html, $prompt],
-                $this->config['prompts']['modify_html']
-            );
-
-            // Send to Bedrock AgentCore
-            $response = $this->bedrockService->invokeAgent($fullPrompt, $sessionId);
-            Log::info('Response from agent');
-            info($response);
+            // Prepare prompt using template that includes the API action name
+            $fullPrompt = "modifyHtml\n\nHTML: " . $html . "\n\nInstructions: " . $prompt;
             
+            // Send to Bedrock AgentCore with a single call
+            $response = $this->bedrockService->invokeAgent(
+                $fullPrompt,
+                $sessionId
+            );
+    
             if (!$response['success']) {
                 return $response;
             }
@@ -144,14 +141,10 @@ class HtmlProcessingService
     public function createHtml(string $prompt, ?string $sessionId = null): array
     {
         try {
-            // Prepare prompt using template
-            $fullPrompt = str_replace(
-                '{prompt}',
-                $prompt,
-                $this->config['prompts']['create_html']
-            );
-
-            // Send to Bedrock AgentCore
+            // Prepare prompt using template that includes the API action name
+            $fullPrompt = "createHtml\n\nInstructions: " . $prompt;
+            
+            // Send to Bedrock AgentCore with a single call
             $response = $this->bedrockService->invokeAgent($fullPrompt, $sessionId);
 
             if (!$response['success']) {
@@ -352,6 +345,7 @@ class HtmlProcessingService
             // Remove dangerous attributes
             $allElements = $xpath->query('//*');
             foreach ($allElements as $element) {
+                /** @var \DOMElement $element */
                 $attributesToRemove = [];
                 foreach ($element->attributes as $attr) {
                     if (strpos($attr->name, 'on') === 0) { // onclick, onload, etc.

@@ -120,11 +120,33 @@ class BedrockAgentService
      * Send a direct model invocation (alternative to agent)
      *
      * @param string $prompt
+     * @param string|null $sessionId Optional session ID for tracking
      * @return array
      */
-    public function invokeModel(string $prompt): array
+    public function invokeModel(string $prompt, ?string $sessionId = null): array
     {
         try {
+            // Create a BedrockRuntime client if needed
+            if (!isset($this->runtimeClient)) {
+                $sdk = new \Aws\Sdk([
+                    'region' => $this->config['aws']['region'],
+                    'version' => 'latest',
+                    'credentials' => [
+                        'key' => $this->config['aws']['key'],
+                        'secret' => $this->config['aws']['secret'],
+                    ]
+                ]);
+                
+                $this->runtimeClient = $sdk->createBedrockRuntime();
+            }
+            
+            // Log the request
+            Log::info('Invoking Bedrock model directly', [
+                'model_id' => $this->config['bedrock']['model_id'],
+                'prompt_length' => strlen($prompt)
+            ]);
+            
+            // Prepare the request body for Claude model
             $body = json_encode([
                 'anthropic_version' => 'bedrock-2023-05-31',
                 'max_tokens' => $this->config['bedrock']['max_tokens'],
@@ -137,19 +159,27 @@ class BedrockAgentService
                 ]
             ]);
 
-            $response = $this->client->getBedrockRuntimeClient()->invokeModel([
+            // Invoke the model directly
+            $response = $this->runtimeClient->invokeModel([
                 'modelId' => $this->config['bedrock']['model_id'],
                 'contentType' => 'application/json',
                 'accept' => 'application/json',
                 'body' => $body,
             ]);
 
-            $responseBody = json_decode($response['body'], true);
+            // Process the response
+            $responseBody = json_decode($response['body']->getContents(), true);
+            
+            // Log the response structure for debugging
+            Log::info('Bedrock model response structure', [
+                'keys' => array_keys($responseBody)
+            ]);
 
             if (isset($responseBody['content'][0]['text'])) {
                 return [
                     'success' => true,
                     'completion' => $responseBody['content'][0]['text'],
+                    'session_id' => $sessionId
                 ];
             }
 
