@@ -59,11 +59,12 @@ class HtmlProcessingService
                 // Continue with the process even if validation fails
             }
 
-            // Prepare prompt using template that includes the API action name
-            $fullPrompt = "modifyHtml\n\nHTML: " . $html . "\n\nInstructions: " . $prompt;
+            // Prepare prompt using template from configuration
+            $promptTemplate = $this->config['prompts']['modify_html'] ?? "You are an expert HTML/CSS developer. I need you to modify the following HTML content based on these instructions. Please ensure the output is valid HTML and maintains the structure and functionality of the original content.\n\nHTML to modify:\n{html}\n\nInstructions: {prompt}\n\nPlease provide only the modified HTML without any explanation or markdown formatting.";
+            $fullPrompt = str_replace(['{html}', '{prompt}'], [$html, $prompt], $promptTemplate);
             
-            // Send to Bedrock AgentCore with a single call
-            $response = $this->bedrockService->invokeAgent(
+            // Send to Bedrock model directly
+            $response = $this->bedrockService->invokeModel(
                 $fullPrompt,
                 $sessionId
             );
@@ -101,6 +102,31 @@ class HtmlProcessingService
             // Minify output if enabled
             if ($this->config['html_processing']['minify_output']) {
                 $modifiedHtml = $this->minifyHtml($modifiedHtml);
+            }
+
+            // Save modification history if site_id and page_id are provided in metadata
+            $metadata = $response['metadata'] ?? [];
+            if (isset($metadata['site_id'])) {
+                try {
+                    $title = 'HTML Modification: ' . substr($prompt, 0, 50) . '...';
+                    $this->saveModificationHistory(
+                        $metadata['site_id'],
+                        $metadata['page_id'] ?? null,
+                        $title,
+                        $prompt,
+                        $html, // original HTML
+                        $modifiedHtml,
+                        $response['session_id'] ?? $sessionId,
+                        $metadata
+                    );
+                    Log::info('Modification history saved successfully');
+                } catch (\Exception $e) {
+                    Log::error('Failed to save modification history', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            } else {
+                Log::info('Modification history feature is not implemented yet');
             }
 
             // Validate the modified HTML
@@ -141,11 +167,12 @@ class HtmlProcessingService
     public function createHtml(string $prompt, ?string $sessionId = null): array
     {
         try {
-            // Prepare prompt using template that includes the API action name
-            $fullPrompt = "createHtml\n\nInstructions: " . $prompt;
+            // Prepare prompt using template from configuration
+            $promptTemplate = $this->config['prompts']['create_html'] ?? "You are an expert HTML/CSS developer. I need you to create a new HTML webpage based on the following requirements. Please create a complete, valid HTML document with proper structure, semantic markup, and inline CSS styling.\n\nRequirements: {prompt}\n\nPlease provide only the HTML code without any explanation or markdown formatting.";
+            $fullPrompt = str_replace('{prompt}', $prompt, $promptTemplate);
             
-            // Send to Bedrock AgentCore with a single call
-            $response = $this->bedrockService->invokeAgent($fullPrompt, $sessionId);
+            // Send to Bedrock model directly
+            $response = $this->bedrockService->invokeModel($fullPrompt, $sessionId);
 
             if (!$response['success']) {
                 return $response;
@@ -189,25 +216,44 @@ class HtmlProcessingService
     }
 
     /**
-     * Extract HTML content from Bedrock response
+     * Extract HTML content from model response
      *
      * @param string $response
      * @return string
      */
     protected function extractHtmlFromResponse(string $response): string
     {
-        // Check if response is empty
-        if (empty($response)) {
-            Log::warning('Empty response received from agent');
-            return '<div>No content was generated. Please try again with a different prompt.</div>';
-        }
+        // Log the raw response for debugging
+        Log::debug('Extracting HTML from response', [
+            'response_length' => strlen($response),
+            'response_preview' => substr($response, 0, 100) . '...'
+        ]);
         
-        // Remove markdown code blocks if present
-        $html = preg_replace('/```html\s*(.*?)\s*```/s', '$1', $response);
-        $html = preg_replace('/```\s*(.*?)\s*```/s', '$1', $html);
-
-        // Trim whitespace
-        $html = trim($html);
+        // Try to extract HTML between code blocks if present
+        if (preg_match('/```(?:html)?\s*(.+?)\s*```/s', $response, $matches)) {
+            Log::info('Extracted HTML from code block');
+            $html = $matches[1];
+        }
+        // Try to extract HTML between tags if present
+        else if (preg_match('/<html.*?>.*?<\/html>/s', $response, $matches)) {
+            Log::info('Extracted complete HTML document');
+            $html = $matches[0];
+        }
+        // Try to extract HTML body content if present
+        else if (preg_match('/<body.*?>(.+?)<\/body>/s', $response, $matches)) {
+            Log::info('Extracted HTML body content');
+            $html = $matches[1];
+        }
+        // Check if response starts with a tag
+        else if (preg_match('/^\s*<[a-z][^>]*>/i', $response)) {
+            Log::info('Response appears to be raw HTML');
+            $html = $response;
+        }
+        // Return the raw response if no HTML patterns found
+        else {
+            Log::info('No HTML patterns found, using raw response');
+            $html = $response;
+        }
         
         // If still empty after extraction, return a placeholder
         if (empty($html)) {
@@ -336,8 +382,15 @@ class HtmlProcessingService
             
             $xpath = new DOMXPath($dom);
 
-            // Remove potentially dangerous elements
-            $dangerousElements = $xpath->query('//script[not(@src)] | //object | //embed | //iframe[not(@src)]');
+            // Check if script tags should be preserved based on config
+            $preserveScripts = $this->config['html_processing']['preserve_scripts'] ?? false;
+            
+            // Remove potentially dangerous elements, but conditionally handle scripts
+            $dangerousQuery = $preserveScripts 
+                ? '//object | //embed | //iframe[not(@src)]' 
+                : '//script[not(@src)] | //object | //embed | //iframe[not(@src)]';
+                
+            $dangerousElements = $xpath->query($dangerousQuery);
             foreach ($dangerousElements as $element) {
                 $element->parentNode->removeChild($element);
             }
@@ -461,5 +514,104 @@ class HtmlProcessingService
     public function deleteHtml(string $path): array
     {
         return $this->s3StorageService->deleteHtml($path);
+    }
+    
+    /**
+     * Save modification history
+     *
+     * @param int $siteId
+     * @param int|null $pageId
+     * @param string $title
+     * @param string $prompt
+     * @param string|null $originalHtml
+     * @param string $modifiedHtml
+     * @param string|null $sessionId
+     * @param array|null $metadata
+     * @return \Prasso\BedrockHtmlEditor\Models\HtmlModification
+     */
+    public function saveModificationHistory(
+        int $siteId,
+        ?int $pageId,
+        string $title,
+        string $prompt,
+        ?string $originalHtml,
+        string $modifiedHtml,
+        ?string $sessionId = null,
+        ?array $metadata = null,
+        ?int $userId = null
+    ): \Prasso\BedrockHtmlEditor\Models\HtmlModification {
+        // User ID can be passed in or will be null if not authenticated
+        
+        $modification = new \Prasso\BedrockHtmlEditor\Models\HtmlModification([
+            'user_id' => $userId,
+            'site_id' => $siteId,
+            'page_id' => $pageId,
+            'title' => $title,
+            'prompt' => $prompt,
+            'original_html' => $originalHtml,
+            'modified_html' => $modifiedHtml,
+            'session_id' => $sessionId,
+            'metadata' => $metadata,
+        ]);
+        
+        $modification->save();
+        
+        Log::info('Saved HTML modification history', [
+            'id' => $modification->id,
+            'site_id' => $siteId,
+            'page_id' => $pageId
+        ]);
+        
+        return $modification;
+    }
+    
+    /**
+     * Get modification history for a page
+     *
+     * @param int $siteId
+     * @param int|null $pageId
+     * @param int $limit
+     * @param int $offset
+     * @return array
+     */
+    public function getModificationHistory(int $siteId, ?int $pageId = null, int $limit = 10, int $offset = 0): array
+    {
+        try {
+            $query = \Prasso\BedrockHtmlEditor\Models\HtmlModification::query()
+                ->where('site_id', $siteId)
+                ->orderBy('created_at', 'desc')
+                ->limit($limit)
+                ->offset($offset);
+                
+            if ($pageId) {
+                $query->where('page_id', $pageId);
+            }
+            
+            $modifications = $query->get();
+            $total = \Prasso\BedrockHtmlEditor\Models\HtmlModification::where('site_id', $siteId)
+                ->when($pageId, function($query) use ($pageId) {
+                    return $query->where('page_id', $pageId);
+                })
+                ->count();
+            
+            return [
+                'success' => true,
+                'modifications' => $modifications,
+                'total' => $total,
+                'limit' => $limit,
+                'offset' => $offset,
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to retrieve modification history', [
+                'error' => $e->getMessage(),
+                'site_id' => $siteId,
+                'page_id' => $pageId
+            ]);
+            
+            return [
+                'success' => false,
+                'error' => 'Failed to retrieve modification history: ' . $e->getMessage(),
+            ];
+        }
     }
 }
