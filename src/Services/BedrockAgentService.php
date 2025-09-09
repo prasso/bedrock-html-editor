@@ -3,13 +3,16 @@
 namespace Prasso\BedrockHtmlEditor\Services;
 
 use Aws\BedrockAgentRuntime\BedrockAgentRuntimeClient;
+use Aws\BedrockRuntime\BedrockRuntimeClient;
 use Aws\Exception\AwsException;
+use Aws\Sdk;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class BedrockAgentService
 {
     protected BedrockAgentRuntimeClient $client;
+    protected BedrockRuntimeClient $runtimeClient;
     protected array $config;
 
     public function __construct()
@@ -147,16 +150,23 @@ class BedrockAgentService
             ]);
             
             // Prepare the request body for Claude model
+            $maxTokens = intval($this->config['bedrock']['max_tokens']);
+            
             $body = json_encode([
                 'anthropic_version' => 'bedrock-2023-05-31',
-                'max_tokens' => $this->config['bedrock']['max_tokens'],
-                'temperature' => $this->config['bedrock']['temperature'],
+                'max_tokens' => $maxTokens,
+                'temperature' => floatval($this->config['bedrock']['temperature']),
                 'messages' => [
                     [
                         'role' => 'user',
                         'content' => $prompt
                     ]
                 ]
+            ]);
+            
+            Log::info('Request body parameters', [
+                'max_tokens' => $maxTokens,
+                'temperature' => floatval($this->config['bedrock']['temperature'])
             ]);
 
             // Invoke the model directly
