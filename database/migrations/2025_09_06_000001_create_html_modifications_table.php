@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('bhe_html_modifications', function (Blueprint $table) {
+        if (!Schema::hasTable('bhe_html_modifications')) {
+            Schema::create('bhe_html_modifications', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id')->nullable();
             $table->unsignedBigInteger('site_id');
@@ -29,7 +30,8 @@ return new class extends Migration
             $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
             $table->foreign('site_id')->references('id')->on('sites')->onDelete('cascade');
             $table->foreign('page_id')->references('id')->on('site_pages')->onDelete('set null');
-        });
+            });
+        }
     }
 
     /**
