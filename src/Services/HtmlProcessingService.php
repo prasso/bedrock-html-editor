@@ -16,7 +16,7 @@ class HtmlProcessingService
     protected S3StorageService $s3StorageService;
     protected array $config;
 
-    public function __construct(BedrockAgentService $bedrockService, S3StorageService $s3StorageService = null)
+    public function __construct(BedrockAgentService $bedrockService, ?S3StorageService $s3StorageService = null)
     {
         $this->bedrockService = $bedrockService;
         $this->s3StorageService = $s3StorageService ?? new S3StorageService();
