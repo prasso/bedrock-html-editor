@@ -32,11 +32,16 @@ class BedrockHtmlEditorAuthorization
         if ($user->isSuperAdmin()) {
             return $next($request);
         }
-
+        $site = null;
+        // If site_id is provided in the request, check if user is on the site's team
+        if ($request->has('site_id')) {
+            $siteId = $request->input('site_id');
+            $site = \App\Models\Site::find($siteId);
+        }
         // Check role-based permissions
         switch ($role) {
             case 'admin':
-                if (!$user->isInstructor()) {
+                if (!$user->isInstructor($site)) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Unauthorized. Admin privileges required.',
@@ -45,26 +50,22 @@ class BedrockHtmlEditorAuthorization
                 break;
                 
             case 'site-owner':
-                // If site_id is provided in the request, check if user is on the site's team
-                if ($request->has('site_id')) {
-                    $siteId = $request->input('site_id');
-                    $site = \App\Models\Site::find($siteId);
-                    
-                    if (!$site) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Site not found.',
-                        ], 404);
-                    }
-                    
-                    $team = $site->teamFromSite();
-                    if (!$team || !$user->belongsToTeam($team)) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Unauthorized. You do not have access to this site.',
-                        ], 403);
-                    }
+                
+                if (!$site) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Site not found.',
+                    ], 404);
                 }
+                
+                $team = $site->teamFromSite();
+                if (!$team || !$user->belongsToTeam($team)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized. You do not have access to this site.',
+                    ], 403);
+                }
+                
                 break;
                 
             case 'user':
