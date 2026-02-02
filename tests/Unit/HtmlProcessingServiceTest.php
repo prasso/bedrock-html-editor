@@ -2,7 +2,6 @@
 
 namespace Prasso\BedrockHtmlEditor\Tests\Unit;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use PHPUnit\Framework\TestCase;
