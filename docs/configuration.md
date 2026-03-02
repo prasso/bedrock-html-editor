@@ -37,7 +37,7 @@ php artisan vendor:publish --provider="Prasso\BedrockHtmlEditor\BedrockHtmlEdito
     'agent_id' => env('BEDROCK_AGENT_ID'),
     'agent_alias_id' => env('BEDROCK_AGENT_ALIAS_ID', 'TSTALIASID'),
     'session_id' => env('BEDROCK_SESSION_ID'),
-    'model_id' => env('BEDROCK_MODEL_ID', 'anthropic.claude-3-sonnet-20240229-v1:0'),
+    'model_id' => env('BEDROCK_MODEL_ID', 'us.anthropic.claude-haiku-4-5-20251001-v1:0'),
     'max_tokens' => env('BEDROCK_MAX_TOKENS', 4000),
     'temperature' => env('BEDROCK_TEMPERATURE', 0.7),
     'timeout' => env('BEDROCK_TIMEOUT', 30), // seconds
@@ -49,7 +49,7 @@ php artisan vendor:publish --provider="Prasso\BedrockHtmlEditor\BedrockHtmlEdito
 | agent_id | Your Bedrock agent ID | `null` |
 | agent_alias_id | Your Bedrock agent alias ID | `TSTALIASID` |
 | session_id | A default session ID for the Bedrock agent | `null` |
-| model_id | The model ID to use for the Bedrock agent | `anthropic.claude-3-sonnet-20240229-v1:0` |
+| model_id | The model ID to use for the Bedrock agent | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
 | max_tokens | The maximum number of tokens to generate | `4000` |
 | temperature | The temperature for the model (0.0 to 1.0) | `0.7` |
 | timeout | The timeout for the Bedrock agent in seconds | `30` |
@@ -143,7 +143,7 @@ AWS_SECRET_ACCESS_KEY=your_secret
 BEDROCK_AGENT_ID=your_agent_id
 BEDROCK_AGENT_ALIAS_ID=your_agent_alias_id
 BEDROCK_SESSION_ID=optional_session_id
-BEDROCK_MODEL_ID=anthropic.claude-3-sonnet-20240229-v1:0
+BEDROCK_MODEL_ID=us.anthropic.claude-haiku-4-5-20251001-v1:0
 BEDROCK_MAX_TOKENS=4000
 BEDROCK_TEMPERATURE=0.7
 BEDROCK_TIMEOUT=30

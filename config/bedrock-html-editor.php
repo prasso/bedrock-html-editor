@@ -28,7 +28,7 @@ return [
         'agent_id' => env('BEDROCK_AGENT_ID'),
         'agent_alias_id' => env('BEDROCK_AGENT_ALIAS_ID', 'TSTALIASID'),
         'session_id' => env('BEDROCK_SESSION_ID'),
-        'model_id' => env('BEDROCK_MODEL_ID', 'anthropic.claude-3-sonnet-20240229-v1:0'),
+        'model_id' => env('BEDROCK_MODEL_ID', 'us.anthropic.claude-haiku-4-5-20251001-v1:0'),
         'max_tokens' => env('BEDROCK_MAX_TOKENS', 4000),
         'temperature' => env('BEDROCK_TEMPERATURE', 0.7),
         'timeout' => env('BEDROCK_TIMEOUT', 30), // seconds

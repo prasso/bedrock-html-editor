@@ -31,7 +31,7 @@ class BedrockAgentServiceTest extends TestCase
                 'bedrock' => [
                     'agent_id' => 'test-agent-id',
                     'agent_alias_id' => 'test-agent-alias-id',
-                    'model_id' => 'anthropic.claude-3-sonnet-20240229-v1:0',
+                    'model_id' => 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
                     'max_tokens' => 4096,
                     'temperature' => 0.7,
                 ],
